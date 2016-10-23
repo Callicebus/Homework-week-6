@@ -10,18 +10,192 @@ output: html_document
 
 Using a new `.Rmd` file and pushing both the markdown and knitted `.html` file to a new repository named "homework-week-6" on your *GitHub* page, answer the following questions:
 
-[1] Write a simple R function, `Z.prop.test()`, that can perform one- or two-sample Z-tests for proportion data, using the following guidelines.
+### Question 1 
+Write a simple R function, `Z.prop.test()`, that can perform one- or two-sample Z-tests for proportion data, using the following guidelines.
 
 - Your function should take the following arguments: **p1** and **n1** (no default) to pose as the estimated proportion and sample size (i.e., based on your sample data); **p2** and **n2** (both defaulting to NULL) that contain a second sample's proportion and sample size data in the event of a two-sample test; **p0** (no default) as the expected value for the population proportion; and **alternative** (default "two.sided") and **conf.level** (default 0.95), to be used in the same way as in the function `t.test()`.
 - When conducting a two-sample test, it should be **p1** that is tested as being smaller or larger than **p2** when alternative="less" or alternative="greater", the same as in the use of x and y in the function `t.test()`.
-- The function should perform a one-sample Z-test using **p1**, **n1**, and **p0** if either **p2** or **n2** (or both) is NULL.
+- The function should perform a one-sample Z-test using **p1**, **n1**, and **p0** if either **p2** or **n2** (or both) is NULL.`
 - The function should contain a check for the rules of thumb we have talked about ($n * p > 5$ and $n * (1-p) >5$) to ensure the validity of assuming the normal distribution in both the one- and two-sample settings. If this is violated, the function should still complete but it should also print an appropriate warning message.
 - The function should return a list containing the members Z (the test statistic), P (the appropriate p-value), and CI (the two-sided CI with respect to confidence level).
 
-[2] The dataset from Kamilar and Cooper has in it a large number of variables related to life history and body size. For this exercise, the end aim is to fit a simple linear regression model to predict longevity ("MaxLongevity\_m") measured in months from species' brain size ("Brain\_Size\_Species_Mean") measured in grams. Do the following for both **longevity~brain size** and **log(longevity)~log(brain size)**.
+###Answer to Q1
+Okay, I had to think about this for a while. The hard part wasn't really the code for the Z-tests, because that was discussed in Module 10. But I had a hard time making he function choose between one-sample or two-sample Z-tests. You can connect the codes for one- and two-sample Z-tests through an if... else... statement, but I wasn't sure how you make it choose between the one-sample or two-sample Z-test. Because p2 and n2 are written in the argument as p2 = NULL and n2 = NULL (as requested in the question), you cannot start your function with something like if(p2 == 0) because it won't work. Changing the argument to p2 = 0 and n2 = 0 actually worked with the if(p2 == 0) statement, but I think that would be wrong, because 0 is still a value and you want to use the fact that there are no data at all, not just a 0 value. Anyway, after Googling for something like 'if vector is NULL' I found a little bit of code called is.null(). So what I think what it does is check if you have data for p2 or n2 (whatever you plug into it) and then gives you either TRUE or FALSE as a result. 
 
-- Fit the regression model and, using {ggplot2}, produce a scatterplot with the fitted line superimposed upon the data. Append the the fitted model equation to your plot (HINT: use the function `geom_text()`).
-- Identify and interpret the point estimate of the slope ($\beta_1$), as well as the outcome of the test associated with the hypotheses H0: $\beta_1$ = 0; HA: $\beta_1$ ≠ 0. Also, find a 90 percent CI for the slope ($\beta_1$) parameter.
-- Using your model, add lines for the 90 percent confidence and prediction interval bands on the plot and add a legend to differentiate between the lines.
-- Produce a point estimate and associated 90 percent PI for the longevity of a species whose brain weight is 800 gm. Do you trust the model to predict observations accurately for this value of the explanatory variable? Why or why not?
-- Looking at your two models, which do you think is better? Why?
+
+```{r}
+Z.prop.test <- function(p1, p2 = NULL, n1, n2 = NULL, p0, alternative = "two.sided", conf.level = 0.95){
+  if(is.null(p2)){ # This will be the code for the One-Sample Z-test
+    zeta <- (p1 - p0)/sqrt(p0 * (1 - p0) / n1)
+    p <- pnorm(zeta, lower.tail = TRUE)
+    lower.ci <- p1 + qnorm(0) * sqrt(p1 * (1 - p1)/n1)
+    upper.ci <- p1 + qnorm(conf.level) * sqrt(p1 * (1 - p1)/n1)
+  
+     if((n1*p1)>5 && (n1*(1-p1)) > 5){
+       message("Attention! Your One-Sample Z-test data are not normally distributed!")
+       }
+    else{
+      message("Great news! Your One-Sample Z-test data seem to be normally distributed!")
+    }
+  outcome <- data.frame(zeta, p, lower.ci, upper.ci)
+  }
+  else{
+    p1 <- mean(v1)
+    p2 <- mean(v2)
+    p.pooled <- (sum(v1) + sum(v2)) / (length(v1) + length(v2))
+    zeta <- (p2 - p1)/sqrt((p.pooled * (1 - p.pooled)) * (1/length(v1) + 1/length(v2)))
+    p <- 1 - pnorm(zeta, lower.tail = TRUE) + pnorm(zeta, lower.tail = FALSE)
+    lower.ci <- (p1 - p2) - 1.96 * sqrt(((p1 * (1 - p1))/n1) + ((p2 * (1 - p2))/n2))
+    upper.ci <- (p1 - p2) + 1.96 * sqrt(((p1 * (1 - p1))/n1) + ((p2 * (1 - p2))/n2))
+
+     if((n1*p1)>5 && (n1*(1-p1)) > 5){
+       message("Attention! Your Two-Sample Z-test data are not normally distributed!")
+       }
+    else{
+      message("Great news! Your Two-Sample Z-test data seem to be normally distributed!")
+    }
+  outcome <- data.frame(zeta, p, lower.ci, upper.ci)
+  }
+outcome
+}
+```
+
+It feels weird to send you a code that I haven't tested. So the obvious thing to do is to copy the ornithology challenge data from Module 10 to see if it works.
+
+```{r}
+#One-sample Z-test
+v1 <- c(0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1)
+Z.prop.test(p1 = mean(v1), n1 = length(v1), p0 = 0.8)
+```
+
+Results are identical to one-sample Z-test challenge in Module 10!
+
+```{r}
+#Two-sample Z-test
+v1 <- c(1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0)
+v2 <- c(1, 1, 0, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1)
+Z.prop.test(p1 = mean(v1), p2 = mean(v2), n1 = length(v1), n2 = length(v2), p0 = 0)
+```
+
+In this case my Z- and p-values do match up with the results in Module 10, but my CI seems to be wrong. I'm not sure what it is that is wrong though... I have tried many different formulas, but none gives me the correct CI. I think the one currently in the Z.prop.test function is the 'most correct' one I've tried.
+
+
+###Question 2
+The dataset from Kamilar and Cooper has in it a large number of variables related to life history and body size. For this exercise, the end aim is to fit a simple linear regression model to predict longevity ("MaxLongevity\_m") measured in months from species' brain size ("Brain\_Size\_Species_Mean") measured in grams. Do the following for both **longevity~brain size** and **log(longevity)~log(brain size)**.
+
+**Part 1** - Fit the regression model and, using {ggplot2}, produce a scatterplot with the fitted line superimposed upon the data. Append the the fitted model equation to your plot (HINT: use the function `geom_text()`).
+
+**Part 2**- Identify and interpret the point estimate of the slope ($\beta_1$), as well as the outcome of the test associated with the hypotheses H0: $\beta_1$ = 0; HA: $\beta_1$ ≠ 0. Also, find a 90 percent CI for the slope ($\beta_1$) parameter.
+
+**Part 3**- Using your model, add lines for the 90 percent confidence and prediction interval bands on the plot and add a legend to differentiate between the lines.
+
+**Part 4**- Produce a point estimate and associated 90 percent PI for the longevity of a species whose brain weight is 800 gm. Do you trust the model to predict observations accurately for this value of the explanatory variable? Why or why not?
+
+**Part 5**- Looking at your two models, which do you think is better? Why?
+
+
+### Answers to Question 2
+
+**Part 1**
+
+For **longevity~brain size**
+```{r}
+library(curl)
+f <- curl("https://raw.githubusercontent.com/difiore/ADA2016/master/KamilarAndCooperData.csv")
+d <- read.csv(f, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+
+Brainsize <- c(d$Brain_Size_Species_Mean)
+Longevity <- c(d$MaxLongevity_m)
+m <- lm(MaxLongevity_m ~ Brain_Size_Species_Mean, d)
+m
+
+library(ggplot2)
+formula <- paste("y= 1.2 x + 248.95")
+plot <- ggplot(data = d, aes(x = Longevity, y = Brainsize)) + geom_point(shape = 1) + geom_smooth(method = "lm", se = FALSE, formula = y ~ x, color="red") + geom_text(x=600, y=250, label = formula) + ggtitle("Relationship between Longevity and Brain Size")
+# I also found an alternative to geom_text() that I played around with for a while (but ended up not using because geom_text was mentioned in the question, and thus perhaps preferred?). The alternative is annotate(geom = "text", …). It's pretty cool because it allows many nice tweaks. You can add, for example, vectors for the x/y positions, or add "\n” in the label to insert line breaks. If you'd like to label each point of one of your vectors, annotate(geom = "text", …) makes your figure look much more clean and presentable, IMO.
+plot
+
+```
+
+For **log(longevity)~log(brain size)**
+```{r}
+LogBS <- log(Brainsize)
+LogL <- log(Longevity)
+m2 <- lm(LogL ~ LogBS)
+m2
+
+formula <- paste("y= 0.23 x + 4.88")
+plot <- ggplot(data = d, aes(x = LogL, y = LogBS)) + geom_point(shape = 4) + geom_smooth(method = "lm", se = FALSE, formula = y ~ x, color="red") + geom_text(x=6, y=1, label = formula) + ggtitle("Log Trasformed Relationship between Longevity and Brain Size")
+plot
+```
+
+
+**Part 2**
+```{r}
+ci <- confint(m,level=0.90)
+ci
+
+log.ci <- confint(m2,level=0.90)
+log.ci
+```
+The point estimate of the slope for beta1 and log beta 1 are already given in the previous section and are 1.2 and 0.23 resectively. These numbers show that for each value that Longevity increases, Brain Size increases by 1.2, and where the Log of Longevity increases by 1 unit, the Log Brain Size increases only by 0.23. As beta1 is not 0 for both the normal slope and the log slope,we reject the H0 hypotheses in both cases. Thus, there is an effect of brain size on longevity. Then, the 90% CI is shown in the code above. 
+
+
+**Part 3**
+
+For **longevity~brain size**
+```{r}
+#This code pretty much comes from Module 12
+BS_hat <- predict(m, newdata = data.frame(Brain_Size_Species_Mean = Brainsize))
+df<-data.frame(cbind(Brainsize, Longevity, BS_hat))
+names(df)<-c("x","y","y.pred") 
+
+ci <- predict(m, newdata = data.frame(Brain_Size_Species_Mean = Brainsize), interval = "confidence", level = 0.90) 
+df<-cbind(df,ci)
+names(df)<-c("x","y","y.pred","ci.fit","ci.lwr","ci.upr")
+
+pi <- predict(m, newdata = data.frame(Brain_Size_Species_Mean = Brainsize), interval = "prediction", level = 0.90) 
+df <- cbind(df, pi) 
+names(df) <- c("x", "y", "y.pred", "ci.fit", "ci.lwr", "ci.upr", "pi.fit", "pi.lwr","pi.upr")
+
+plot <- ggplot(data = df, aes(x = Brainsize, y = Longevity)) + geom_point(shape = 1) + geom_line(aes(x = x, y = ci.fit, colour = "ci.fit")) + geom_line(aes(x = x, y = pi.fit, colour = "pi.fit")) +  geom_line(aes(x = x, y = ci.lwr, colour = "ci lwr and upr")) + geom_line(aes(x = x, y = ci.upr, colour = "ci lwr and upr")) +  geom_line(aes(x = x, y = pi.lwr, colour = "pi lwr and upr")) + geom_line(aes(x = x, y = pi.upr, colour = "pi lwr and upr")) + ggtitle("Relationship between Longevity and Brain Size - CI and PI lines") + theme(legend.title=element_blank())
+plot
+```
+
+For **log(longevity)~log(brain size)**
+```{r}
+LogBS_hat <- predict(m2, newdata = data.frame(LogBS = Brainsize))
+df2<-data.frame(cbind(LogBS, LogL, LogBS_hat))
+names(df2)<-c("x","y","y.pred") 
+
+ci2 <- predict(m2, newdata = data.frame(LogBS = Brainsize), interval = "confidence", level = 0.90) 
+df2<-cbind(df2,ci2)
+names(df2)<-c("x","y","y.pred","ci.fit","ci.lwr","ci.upr")
+
+pi2 <- predict(m2, newdata = data.frame(LogBS = Brainsize), interval = "prediction", level = 0.90) 
+df2 <- cbind(df2, pi2) 
+names(df2) <- c("x", "y", "y.pred", "ci.fit", "ci.lwr", "ci.upr", "pi.fit", "pi.lwr","pi.upr")
+
+plot2 <- ggplot(data = df2, aes(x = LogBS, y = LogL)) + geom_point() + geom_line(aes(x = x, y = ci.fit, colour = "ci.fit")) + geom_line(aes(x = x, y = pi.fit, colour = "pi.fit")) +  geom_line(aes(x = x, y = ci.lwr, colour = "ci lwr and upr")) + geom_line(aes(x = x, y = ci.upr, colour = "ci lwr and upr")) +  geom_line(aes(x = x, y = pi.lwr, colour = "pi lwr and upr")) + geom_line(aes(x = x, y = pi.upr, colour = "pi lwr and upr")) + ggtitle("Log Transformed Relationship between Longevity and Brain Size - CI and PI lines") + theme(legend.title=element_blank())
+plot2
+```
+
+This second graph looks weird, but I'm not sure why. I just copied the code above (which should be very similar to what we discussed in Module 12, as I used it as an example) and changed the code where necessary to reflect the lof transformed data rather than the normal data. I've been staring at thos too long to still see where I went wrong, so I'll just leave it like this for now...
+
+**Part 4**
+
+For **longevity~brain size**
+```{r}
+point.estimate <- predict(m, newdata = data.frame(Brain_Size_Species_Mean = 800), interval = "prediction",level = 0.90)
+point.estimate
+```
+
+For **log(longevity)~log(brain size)**
+```{r}
+log.point.estimate <- predict(m2, newdata = data.frame(LogBS = log(800)), interval = "prediction", level = 0.90)  
+log.point.estimate
+```
+I'm not sure I would trust te model to predict the longevity correctly. Our data only model up to roughly 500 grams, so we really don't know what would happen with larger rain sizes. Maybe the increase in longevity flattens out after a certain point. In that case the model would overestimate the longevity.
+
+**Part 5**
+Ignoring my weird graph in part 3, I'd say the log-transformed one looks better. I think the data are a little more norally distributed. 
